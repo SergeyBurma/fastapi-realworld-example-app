@@ -16,4 +16,4 @@ class DateTimeModelMixin(BaseModel):
 
 
 class IDModelMixin(BaseModel):
-    id_: int = Field(0, alias="id")
+    id_: str = Field(None, alias="id")

@@ -1,8 +1,5 @@
 from typing import Optional, Union
 
-from asyncpg import Connection
-
-from app.db.queries.queries import queries
 from app.db.repositories.base import BaseRepository
 from app.db.repositories.users import UsersRepository
 from app.models.domain.profiles import Profile
@@ -12,9 +9,9 @@ UserLike = Union[User, Profile]
 
 
 class ProfilesRepository(BaseRepository):
-    def __init__(self, conn: Connection):
-        super().__init__(conn)
-        self._users_repo = UsersRepository(conn)
+    def __init__(self, db):
+        super().__init__(db)
+        self._users_repo = UsersRepository(db)
 
     async def get_profile_by_username(
         self,
@@ -39,13 +36,14 @@ class ProfilesRepository(BaseRepository):
         target_user: UserLike,
         requested_user: UserLike,
     ) -> bool:
-        return (
-            await queries.is_user_following_for_another(
-                self.connection,
-                follower_username=requested_user.username,
-                following_username=target_user.username,
-            )
-        )["is_following"]
+        follower = await self._users_repo.get_user_by_username(username=requested_user.username)
+        following = await self._users_repo.get_user_by_username(username=target_user.username)
+
+        follow_doc = await self.db.followers.find_one({
+            "follower_id": follower.id_,
+            "following_id": following.id_,
+        })
+        return follow_doc is not None
 
     async def add_user_into_followers(
         self,
@@ -53,12 +51,13 @@ class ProfilesRepository(BaseRepository):
         target_user: UserLike,
         requested_user: UserLike,
     ) -> None:
-        async with self.connection.transaction():
-            await queries.subscribe_user_to_another(
-                self.connection,
-                follower_username=requested_user.username,
-                following_username=target_user.username,
-            )
+        follower = await self._users_repo.get_user_by_username(username=requested_user.username)
+        following = await self._users_repo.get_user_by_username(username=target_user.username)
+
+        await self.db.followers.insert_one({
+            "follower_id": follower.id_,
+            "following_id": following.id_,
+        })
 
     async def remove_user_from_followers(
         self,
@@ -66,9 +65,10 @@ class ProfilesRepository(BaseRepository):
         target_user: UserLike,
         requested_user: UserLike,
     ) -> None:
-        async with self.connection.transaction():
-            await queries.unsubscribe_user_from_another(
-                self.connection,
-                follower_username=requested_user.username,
-                following_username=target_user.username,
-            )
+        follower = await self._users_repo.get_user_by_username(username=requested_user.username)
+        following = await self._users_repo.get_user_by_username(username=target_user.username)
+
+        await self.db.followers.delete_one({
+            "follower_id": follower.id_,
+            "following_id": following.id_,
+        })

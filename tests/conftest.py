@@ -2,37 +2,37 @@ from os import environ
 
 import pytest
 from asgi_lifespan import LifespanManager
-from asyncpg.pool import Pool
 from fastapi import FastAPI
 from httpx import AsyncClient
+from mongomock import MongoClient
 
 from app.db.repositories.articles import ArticlesRepository
 from app.db.repositories.users import UsersRepository
 from app.models.domain.articles import Article
 from app.models.domain.users import UserInDB
 from app.services import jwt
-from tests.fake_asyncpg_pool import FakeAsyncPGPool
 
 environ["APP_ENV"] = "test"
 
 
 @pytest.fixture
 def app() -> FastAPI:
-    from app.main import get_application  # local import for testing purpose
+    from app.main import get_application
 
     return get_application()
 
 
 @pytest.fixture
-async def initialized_app(app: FastAPI) -> FastAPI:
-    async with LifespanManager(app):
-        app.state.pool = await FakeAsyncPGPool.create_pool(app.state.pool)
-        yield app
+def mongomock_client():
+    return MongoClient()
 
 
 @pytest.fixture
-def pool(initialized_app: FastAPI) -> Pool:
-    return initialized_app.state.pool
+async def initialized_app(app: FastAPI, mongomock_client) -> FastAPI:
+    async with LifespanManager(app):
+        app.state.mongodb_client = mongomock_client
+        app.state.db = mongomock_client.get_default_database()
+        yield app
 
 
 @pytest.fixture
@@ -56,25 +56,25 @@ def authorization_prefix() -> str:
 
 
 @pytest.fixture
-async def test_user(pool: Pool) -> UserInDB:
-    async with pool.acquire() as conn:
-        return await UsersRepository(conn).create_user(
-            email="test@test.com", password="password", username="username"
-        )
+async def test_user(initialized_app: FastAPI) -> UserInDB:
+    db = initialized_app.state.db
+    return await UsersRepository(db).create_user(
+        email="test@test.com", password="password", username="username"
+    )
 
 
 @pytest.fixture
-async def test_article(test_user: UserInDB, pool: Pool) -> Article:
-    async with pool.acquire() as connection:
-        articles_repo = ArticlesRepository(connection)
-        return await articles_repo.create_article(
-            slug="test-slug",
-            title="Test Slug",
-            description="Slug for tests",
-            body="Test " * 100,
-            author=test_user,
-            tags=["tests", "testing", "pytest"],
-        )
+async def test_article(test_user: UserInDB, initialized_app: FastAPI) -> Article:
+    db = initialized_app.state.db
+    articles_repo = ArticlesRepository(db)
+    return await articles_repo.create_article(
+        slug="test-slug",
+        title="Test Slug",
+        description="Slug for tests",
+        body="Test " * 100,
+        author=test_user,
+        tags=["tests", "testing", "pytest"],
+    )
 
 
 @pytest.fixture
@@ -90,4 +90,4 @@ def authorized_client(
         "Authorization": f"{authorization_prefix} {token}",
         **client.headers,
     }
-    return client
+    return authorized_client

@@ -1,10 +1,10 @@
-from asyncpg.connection import Connection
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 
 class BaseRepository:
-    def __init__(self, conn: Connection) -> None:
-        self._conn = conn
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._db = db
 
     @property
-    def connection(self) -> Connection:
-        return self._conn
+    def db(self) -> AsyncIOMotorDatabase:
+        return self._db

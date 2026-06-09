@@ -1,6 +1,6 @@
 import logging
 
-from pydantic import PostgresDsn, SecretStr
+from pydantic import SecretStr
 
 from app.core.settings.app import AppSettings
 
@@ -12,8 +12,6 @@ class TestAppSettings(AppSettings):
 
     secret_key: SecretStr = SecretStr("test_secret")
 
-    database_url: PostgresDsn
-    max_connection_count: int = 5
-    min_connection_count: int = 5
+    database_url: str = "mongodb://localhost:27017"
 
     logging_level: int = logging.DEBUG
