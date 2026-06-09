@@ -74,7 +74,7 @@ class ArticlesRepository(BaseRepository):  # noqa: WPS214
         }
 
         await self.db.articles.update_one(
-            {"slug": article.slug, "author_id": article.author.id_},
+            {"slug": article.slug, "author_id": article.author_id},
             {"$set": update_data},
         )
 
@@ -83,7 +83,7 @@ class ArticlesRepository(BaseRepository):  # noqa: WPS214
     async def delete_article(self, *, article: Article) -> None:
         await self.db.articles.delete_one({
             "slug": article.slug,
-            "author_id": article.author.id_,
+            "author_id": article.author_id,
         })
         await self.db.comments.delete_many({"article_slug": article.slug})
         await self.db.favorites.delete_many({"article_slug": article.slug})
@@ -239,6 +239,7 @@ class ArticlesRepository(BaseRepository):  # noqa: WPS214
             title=doc["title"],
             description=doc["description"],
             body=doc["body"],
+            author_id=str(doc["author_id"]),
             author=await self._profiles_repo.get_profile_by_username(
                 username=doc["author_username"],
                 requested_user=requested_user,

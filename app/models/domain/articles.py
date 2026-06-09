@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from app.models.common import DateTimeModelMixin, IDModelMixin
 from app.models.domain.profiles import Profile
@@ -11,6 +11,7 @@ class Article(IDModelMixin, DateTimeModelMixin, RWModel):
     description: str
     body: str
     tags: List[str]
+    author_id: str
     author: Profile
     favorited: bool
     favorites_count: int

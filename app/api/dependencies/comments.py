@@ -14,7 +14,7 @@ from app.services.comments import check_user_can_modify_comment
 
 
 async def get_comment_by_id_from_path(
-    comment_id: int = Path(..., ge=1),
+    comment_id: str = Path(...),
     article: Article = Depends(articles.get_article_by_slug_from_path),
     user: Optional[User] = Depends(
         authentication.get_current_user_authorizer(required=False),

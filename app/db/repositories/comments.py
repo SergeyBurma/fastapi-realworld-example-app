@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import List, Optional
 
+from bson import ObjectId
+
 from app.db.errors import EntityDoesNotExist
 from app.db.repositories.base import BaseRepository
 from app.db.repositories.profiles import ProfilesRepository
@@ -22,7 +24,7 @@ class CommentsRepository(BaseRepository):
         user: Optional[User] = None,
     ) -> Comment:
         comment_doc = await self.db.comments.find_one({
-            "_id": comment_id,
+            "_id": ObjectId(comment_id),
             "article_slug": article.slug,
         })
         if comment_doc:
@@ -77,7 +79,7 @@ class CommentsRepository(BaseRepository):
     async def delete_comment(self, *, comment: Comment) -> None:
         await self.db.comments.delete_one({
             "_id": comment.id_,
-            "author_id": comment.author.id_,
+            "author_id": comment.author_id,
         })
 
     async def _get_comment_from_db(
@@ -89,6 +91,7 @@ class CommentsRepository(BaseRepository):
         return Comment(
             id_=str(doc["_id"]),
             body=doc["body"],
+            author_id=str(doc["author_id"]),
             author=await self._profiles_repo.get_profile_by_username(
                 username=doc["author_username"],
                 requested_user=requested_user,
